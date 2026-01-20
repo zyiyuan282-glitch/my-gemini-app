@@ -6,48 +6,64 @@
     <title>AI 猫咪品种识别器</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        .loading-paws { animation: pulse 1.5s infinite; }
-        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .5; } }
+        .gradient-bg { background: linear-gradient(135deg, #ffedd5 0%, #fee2e2 100%); }
+        .shimmer { animation: shimmer 2s infinite linear; background: linear-gradient(90deg, #f3f4f6 0%, #e5e7eb 50%, #f3f4f6 100%); background-size: 200% 100%; }
+        @keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
     </style>
 </head>
-<body class="bg-orange-50 min-h-screen flex flex-col items-center p-4">
+<body class="gradient-bg min-h-screen flex flex-col items-center p-4 font-sans text-slate-800">
 
-    <header class="text-center my-8">
-        <h1 class="text-4xl font-bold text-orange-600">🐱 猫咪识别助手</h1>
-        <p class="text-gray-600 mt-2">拍照或上传照片，探索猫咪的品种与性格</p>
+    <header class="text-center my-6">
+        <h1 class="text-4xl font-black text-orange-600 mb-2">🐱 喵星人鉴定官</h1>
+        <p class="text-slate-600">上传照片，AI 告诉你它是哪种小猫咪</p>
     </header>
 
-    <main class="w-full max-w-md bg-white rounded-3xl shadow-xl overflow-hidden p-6">
-        <div class="mb-4">
-            <input type="password" id="apiKey" placeholder="在此输入您的 Gemini API Key" 
-                   class="w-full p-2 border-2 border-orange-100 rounded-xl focus:border-orange-400 outline-none">
+    <main class="w-full max-w-md bg-white rounded-[2rem] shadow-2xl p-6 border-4 border-white">
+        <div class="mb-6">
+            <label class="block text-xs font-bold text-slate-400 uppercase mb-2 ml-1">Gemini API Key</label>
+            <input type="password" id="apiKey" placeholder="在此输入 API Key" 
+                   class="w-full px-4 py-3 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-orange-400 focus:bg-white outline-none transition-all">
         </div>
 
-        <div id="dropZone" class="border-3 border-dashed border-orange-200 rounded-2xl p-8 text-center cursor-pointer hover:bg-orange-50 transition">
+        <div id="dropZone" class="group border-4 border-dashed border-slate-100 rounded-[1.5rem] p-10 text-center cursor-pointer hover:border-orange-300 hover:bg-orange-50 transition-all">
             <input type="file" id="fileInput" accept="image/*" class="hidden">
-            <div class="text-5xl mb-4">📸</div>
-            <p class="text-gray-500">点击拍照或上传猫咪照片</p>
+            <div class="text-6xl mb-4 group-hover:scale-110 transition-transform">📸</div>
+            <p class="text-slate-500 font-medium">点击拍照或选取猫咪照片</p>
         </div>
 
-        <img id="preview" class="hidden w-full h-64 object-cover rounded-2xl mt-4">
-
-        <div id="result" class="hidden mt-6 p-4 bg-orange-50 rounded-2xl">
-            <h2 id="breedName" class="text-2xl font-bold text-orange-700"></h2>
-            <div id="breedInfo" class="mt-2 text-gray-700 leading-relaxed text-sm"></div>
+        <div id="previewContainer" class="hidden mt-6">
+            <img id="preview" class="w-full h-72 object-cover rounded-2xl shadow-inner">
+            <button id="analyzeBtn" class="w-full mt-4 bg-orange-500 hover:bg-orange-600 text-white font-bold py-4 rounded-2xl transition shadow-lg active:scale-95">
+                开始鉴定品种 🐾
+            </button>
         </div>
 
-        <button id="analyzeBtn" class="hidden w-full mt-6 bg-orange-500 text-white font-bold py-4 rounded-2xl hover:bg-orange-600 transition shadow-lg">
-            开始识别 (Meow!)
-        </button>
+        <div id="loading" class="hidden mt-6 space-y-3">
+            <div class="h-8 shimmer rounded-lg w-3/4"></div>
+            <div class="h-20 shimmer rounded-lg w-full"></div>
+        </div>
+
+        <div id="result" class="hidden mt-6 p-5 bg-orange-50 rounded-2xl border-2 border-orange-100">
+            <h2 id="breedName" class="text-2xl font-bold text-orange-700 mb-2"></h2>
+            <p id="breedInfo" class="text-slate-700 leading-relaxed italic"></p>
+        </div>
     </main>
+
+    <footer class="mt-8 text-slate-400 text-xs text-center leading-loose">
+        Powered by Gemini 3 Flash<br>
+        照片将发送给 Google AI 进行识别
+    </footer>
 
     <script>
         const fileInput = document.getElementById('fileInput');
         const dropZone = document.getElementById('dropZone');
+        const previewContainer = document.getElementById('previewContainer');
         const preview = document.getElementById('preview');
         const analyzeBtn = document.getElementById('analyzeBtn');
         const result = document.getElementById('result');
+        const loading = document.getElementById('loading');
 
+        // 点击上传
         dropZone.onclick = () => fileInput.click();
 
         fileInput.onchange = (e) => {
@@ -56,8 +72,9 @@
                 const reader = new FileReader();
                 reader.onload = (f) => {
                     preview.src = f.target.result;
-                    preview.classList.remove('hidden');
-                    analyzeBtn.classList.remove('hidden');
+                    previewContainer.classList.remove('hidden');
+                    result.classList.add('hidden');
+                    dropZone.classList.add('hidden');
                 };
                 reader.readAsDataURL(file);
             }
@@ -65,24 +82,45 @@
 
         analyzeBtn.onclick = async () => {
             const key = document.getElementById('apiKey').value;
-            if(!key) return alert("请先输入 API Key");
+            if(!key) return alert("请先输入 API Key 才能调用 AI 哦！");
 
-            analyzeBtn.innerText = "正在分析猫爪中... 🐾";
             analyzeBtn.disabled = true;
+            analyzeBtn.innerText = "鉴定中，请稍后...";
+            loading.classList.remove('hidden');
+            result.classList.add('hidden');
 
-            // 这里对接 Gemini API 的逻辑
+            const base64Data = preview.src.split(',')[1];
+
             try {
-                // 模拟 API 响应 (实际部署时这里会调用 fetch 访问 Gemini)
-                setTimeout(() => {
-                    document.getElementById('breedName').innerText = "可能是：布偶猫 (Ragdoll)";
-                    document.getElementById('breedInfo').innerText = "性格温顺，由于像布偶一样松弛而得名。起源于美国，拥有美丽的蓝色大眼睛和厚实的被毛。";
-                    result.classList.remove('hidden');
-                    analyzeBtn.innerText = "重新识别";
-                    analyzeBtn.disabled = false;
-                }, 2000);
+                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${key}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        contents: [{
+                            parts: [
+                                { text: "请识别这张照片中的猫咪品种。如果是混血猫，请说明特征。请用中文回答，格式为：【品种名称】：（介绍它的性格、起源和照顾要点）" },
+                                { inline_data: { mime_type: "image/jpeg", data: base64Data } }
+                            ]
+                        }]
+                    })
+                });
+
+                const data = await response.json();
+                const text = data.candidates[0].content.parts[0].text;
+                
+                // 简单的解析
+                const [name, ...info] = text.split('：');
+                document.getElementById('breedName').innerText = name.replace(/【|】/g, '');
+                document.getElementById('breedInfo').innerText = info.join('：');
+
+                result.classList.remove('hidden');
             } catch (err) {
-                alert("识别出错了，请检查网络或 Key");
+                console.error(err);
+                alert("识别失败：请检查 API Key 是否正确，或者网络是否连通。");
+            } finally {
+                loading.classList.add('hidden');
                 analyzeBtn.disabled = false;
+                analyzeBtn.innerText = "重新鉴定 🐱";
             }
         };
     </script>
