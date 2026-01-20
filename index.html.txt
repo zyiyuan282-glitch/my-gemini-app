@@ -1,0 +1,21 @@
+做一个识别各种猫咪品种的应用
+Gemini 3 Flash Preview
+Ran for 9s
+lightbulb
+Thought for 9 seconds
+metadata.json
+check_circle
+index.html
+check_circle
+index.tsx
+check_circle
+types.ts
+check_circle
+services/geminiService.ts
+check_circle
+components/CameraModule.tsx
+check_circle
+components/ResultDisplay.tsx
+check_circle
+App.tsx
+check_circle
